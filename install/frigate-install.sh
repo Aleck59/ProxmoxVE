@@ -54,48 +54,13 @@ cp -a /opt/frigate/docker/main/rootfs/. /
 export TARGETARCH="amd64"
 echo 'libc6 libraries/restart-without-asking boolean true' | debconf-set-selections
 # Intel has blocked access to its repository with drivers in some regions, for example, in Ukraine.
-$STD apt-get -qq install tor
-cat > /etc/tor/torsocks.conf << 'EOF'
-SocksPort 9050
-DataDirectory /var/lib/tor
-User debian-tor
-ExitNodes {us},{gb},{ie},{nl},{de},{se},{ch}
-ExcludeNodes {cn},{ru},{ir},{kp},{by}
-ExcludeExitNodes {cn},{ru},{ir},{kp},{by}
-StrictNodes 0
-Log notice file /var/log/tor/tor.log
-EOF
-cat > /etc/tor/torsocks.conf << 'EOF'
-TorAddress 127.0.0.1
-TorPort 9050
-OnionAddrRange 127.42.42.0/24
-AllowInbound 1
-EOF
-TorTimeout=5
-$STD systemctl -q start tor
-for i in $(seq 1 $TorTimeout); do
-  if ss -tlnp | grep -q ":9050"; then
-     $STD echo "Tor is ready!"
-    break
-  fi 
-  if [ "$i" -eq $TorTimeout ]; then
-    $STD echo "Tor did not start in $TorTimeout seconds"
-    exit 1
-  fi
-  $STD echo "Waiting Tor... ($i/$TorTimeout)"
-  sleep 1
-done
 if [[ "${VERBOSE}" == "no" ]]; then
   sed -i '/^.*unset DEBIAN_FRONTEND.*$/d' /opt/frigate/docker/main/install_deps.sh
   export DEBIAN_FRONTEND=noninteractive
   echo "libedgetpu1-max libedgetpu/accepted-eula boolean true" | debconf-set-selections
   echo "libedgetpu1-max libedgetpu/install-confirm-max boolean true" | debconf-set-selections
 fi
-$STD torify /opt/frigate/docker/main/install_deps.sh
-systemctl -q stop tor
-systemctl -q disable tor 
-$STD apt-get -qq remove --purge tor 
-rm -rf /etc/tor /var/lib/tor /var/log/tor
+$STD /opt/frigate/docker/main/install_deps.sh
 $STD apt update
 $STD ln -svf /usr/lib/btbn-ffmpeg/bin/ffmpeg /usr/local/bin/ffmpeg
 $STD ln -svf /usr/lib/btbn-ffmpeg/bin/ffprobe /usr/local/bin/ffprobe
